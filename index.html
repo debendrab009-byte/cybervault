@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<title>CyberVault v6</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--surface:#111118;--card:#16161f;--card2:#1c1c28;
+  --border:#2a2a3d;--border2:#383850;
+  --cyan:#00f5ff;--cyan-dim:rgba(0,245,255,0.12);--cyan-glow:rgba(0,245,255,0.35);
+  --purple:#a855f7;--purple-dim:rgba(168,85,247,0.15);
+  --yellow:#ffd93d;--yellow-dim:rgba(255,217,61,0.15);
+  --green:#00ff88;--red:#ff3860;--red-dim:rgba(255,56,96,0.12);
+  --text:#e0e0f0;--text2:#b0b0cc;--muted:#6b6b8a;
+  --font-d:'Orbitron',monospace;--font-b:'Rajdhani',sans-serif;
+}
+html,body{height:100%;width:100%;background:var(--bg);color:var(--text);font-family:var(--font-b);-webkit-tap-highlight-color:transparent;user-select:none;overflow:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,245,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,0.025) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);pointer-events:none;z-index:1;animation:scanMove 10s linear infinite}
+@keyframes scanMove{0%{background-position:0 0}100%{background-position:0 100px}}
+
+/* ── SCREENS ── */
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;padding:20px;opacity:0;pointer-events:none;transition:opacity 0.4s ease;overflow-y:auto}
+.screen.active{opacity:1;pointer-events:all}
+
+/* ── LOGO ── */
+.logo-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:12px}
+.logo-icon{width:68px;height:68px;border:2px solid var(--cyan);border-radius:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 24px var(--cyan-glow),inset 0 0 16px rgba(0,245,255,0.05);margin-bottom:14px;animation:iconPulse 3s ease-in-out infinite}
+@keyframes iconPulse{0%,100%{box-shadow:0 0 24px var(--cyan-glow),inset 0 0 16px rgba(0,245,255,0.05)}50%{box-shadow:0 0 40px var(--cyan-glow),inset 0 0 24px rgba(0,245,255,0.1)}}
+.logo-icon svg{width:34px;height:34px}
+.logo-title{font-family:var(--font-d);font-size:24px;font-weight:900;letter-spacing:6px;color:var(--cyan);text-shadow:0 0 20px var(--cyan-glow)}
+.logo-sub{font-size:10px;letter-spacing:4px;color:var(--muted);margin-top:4px;text-transform:uppercase}
+.version-badge{font-size:10px;letter-spacing:2px;color:var(--purple);margin-top:6px}
+
+/* ── CARD ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:24px 20px;width:100%;max-width:360px;box-shadow:0 8px 40px rgba(0,0,0,0.6);position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:0.5}
+.card-title{font-family:var(--font-d);font-size:12px;letter-spacing:3px;color:var(--muted);text-align:center;margin-bottom:20px;text-transform:uppercase}
+
+/* ── PIN ── */
+.pin-display{display:flex;gap:12px;justify-content:center;margin-bottom:24px}
+.pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all 0.2s}
+.pin-dot.filled{background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 10px var(--cyan-glow)}
+.pin-dot.error{background:var(--red);border-color:var(--red);animation:shake 0.4s ease}
+.pin-dot.purple-fill{background:var(--purple);border-color:var(--purple);box-shadow:0 0 10px rgba(168,85,247,0.5)}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+
+/* ── NUMPAD ── */
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.num-btn{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:16px 0;font-family:var(--font-d);font-size:18px;font-weight:700;color:var(--text);cursor:pointer;transition:all 0.15s;-webkit-tap-highlight-color:transparent}
+.num-btn:active{background:var(--cyan-dim);border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 14px var(--cyan-glow);transform:scale(0.95)}
+.num-btn.del-btn{font-size:15px;color:var(--muted)}
+.num-btn.del-btn:active{color:var(--red);border-color:var(--red);background:var(--red-dim)}
+.num-btn.empty{opacity:0;pointer-events:none}
+.num-btn.purple-btn:active{background:var(--purple-dim);border-color:var(--purple);color:var(--purple);box-shadow:0 0 14px rgba(168,85,247,0.4)}
+
+/* ── STATUS ── */
+.status-msg{text-align:center;font-size:12px;letter-spacing:1px;margin-top:14px;min-height:18px;color:var(--muted)}
+.status-msg.error{color:var(--red)}
+.status-msg.success{color:var(--green)}
+.setup-step{font-size:11px;letter-spacing:2px;color:var(--cyan);text-align:center;margin-bottom:6px;text-transform:uppercase}
+
+/* ── ATTEMPT DOTS ── */
+.attempt-bar{display:flex;gap:6px;justify-content:center;margin-top:10px}
+.attempt-dot{width:8px;height:8px;border-radius:50%;background:var(--green);transition:background 0.3s}
+.attempt-dot.used{background:var(--red)}
+
+/* ── INTRUDER ── */
+#intruderFlash{position:fixed;inset:0;background:var(--red);opacity:0;pointer-events:none;z-index:999;transition:opacity 0.1s}
+#intruderCam{display:none}
+#intruderCanvas{display:none}
+
+/* ══════════════════
+   VAULT SCREEN
+══════════════════ */
+#screenVault{justify-content:flex-start;padding-top:0;overflow-y:auto}
+.vault-topbar{position:sticky;top:0;width:100%;background:rgba(10,10,15,0.95);backdrop-filter:blur(12px);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);z-index:20}
+.vault-topbar-logo{font-family:var(--font-d);font-size:13px;letter-spacing:3px;color:var(--cyan)}
+.vault-topbar-v{font-size:9px;color:var(--purple);letter-spacing:2px;margin-top:2px}
+.topbar-right{display:flex;gap:8px;align-items:center}
+.icon-btn{background:transparent;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:14px;color:var(--muted);cursor:pointer;transition:all 0.2s}
+.icon-btn:active{border-color:var(--cyan);color:var(--cyan)}
+.lock-btn{background:transparent;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-family:var(--font-b);font-size:12px;letter-spacing:1px;color:var(--muted);cursor:pointer;transition:all 0.2s}
+.lock-btn:active{color:var(--red);border-color:var(--red)}
+
+/* ── SEARCH BAR ── */
+.search-bar-wrap{width:100%;max-width:420px;margin:0 auto;padding:12px 16px 0}
+.search-bar{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:11px 16px 11px 40px;font-family:var(--font-b);font-size:14px;color:var(--text);outline:none;transition:border-color 0.2s;user-select:text;position:relative}
+.search-bar:focus{border-color:var(--cyan)}
+.search-wrap{position:relative}
+.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--muted);pointer-events:none}
+.search-clear{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;display:none}
+
+.vault-body{width:100%;max-width:420px;padding:12px 16px 100px;margin:0 auto}
+
+/* ── STATS ── */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 8px;text-align:center;position:relative;overflow:hidden;cursor:pointer;transition:all 0.2s}
+.stat-card:active{transform:scale(0.96)}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat-card.sc-pass::before{background:var(--cyan)}
+.stat-card.sc-note::before{background:var(--purple)}
+.stat-card.sc-photo::before{background:var(--yellow)}
+.stat-num{font-family:var(--font-d);font-size:20px;font-weight:900}
+.stat-card.sc-pass .stat-num{color:var(--cyan)}
+.stat-card.sc-note .stat-num{color:var(--purple)}
+.stat-card.sc-photo .stat-num{color:var(--yellow)}
+.stat-label{font-size:9px;letter-spacing:1px;color:var(--muted);margin-top:2px}
+
+/* ── TABS ── */
+.section-tabs{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px}
+.section-tabs::-webkit-scrollbar{display:none}
+.tab-btn{flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:7px 14px;font-family:var(--font-b);font-size:13px;letter-spacing:1px;color:var(--muted);cursor:pointer;transition:all 0.2s}
+.tab-btn.active-pass{background:var(--cyan-dim);border-color:var(--cyan);color:var(--cyan)}
+.tab-btn.active-note{background:var(--purple-dim);border-color:var(--purple);color:var(--purple)}
+.tab-btn.active-photo{background:var(--yellow-dim);border-color:var(--yellow);color:var(--yellow)}
+.panel{display:none}
+.panel.active{display:block}
+
+/* ── FAB ── */
+.add-fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--cyan);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:30;box-shadow:0 4px 20px var(--cyan-glow);transition:transform 0.2s,background 0.3s;font-size:24px;color:var(--bg)}
+.add-fab:active{transform:scale(0.9)}
+.add-fab.note-mode{background:var(--purple);box-shadow:0 4px 20px rgba(168,85,247,0.5)}
+.add-fab.photo-mode{background:var(--yellow);box-shadow:0 4px 20px rgba(255,217,61,0.4)}
+
+/* ── ITEM CARDS ── */
+.item-card{background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;display:flex;align-items:center;gap:12px}
+.item-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px}
+.item-card.pass-item::before{background:var(--cyan)}
+.item-card.note-item::before{background:var(--purple)}
+.item-card.photo-item::before{background:var(--yellow)}
+.item-card:active{transform:scale(0.98)}
+.item-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.item-icon.pi{background:var(--cyan-dim)}
+.item-icon.ni{background:var(--purple-dim)}
+.item-icon.phi{background:var(--yellow-dim)}
+.item-info{flex:1;min-width:0}
+.item-title{font-size:15px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-sub{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-arrow{color:var(--muted);font-size:16px;flex-shrink:0}
+
+/* ── EMPTY STATE ── */
+.empty-state{text-align:center;padding:40px 20px}
+.empty-state .empty-icon{font-size:48px;margin-bottom:12px;opacity:0.3}
+.empty-state p{font-size:13px;color:var(--muted);letter-spacing:1px;line-height:1.8}
+
+/* ── INTRUDER BANNER ── */
+.intruder-banner{background:rgba(255,56,96,0.1);border:1px solid var(--red);border-radius:14px;padding:12px 16px;margin-bottom:14px;display:none;cursor:pointer}
+.intruder-banner-top{display:flex;align-items:center;gap:8px}
+.intruder-banner-top span{font-size:12px;letter-spacing:1px;color:var(--red)}
+.intruder-thumbs{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.intruder-thumbs img{width:70px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--red)}
+
+/* ══════════════════
+   MODALS
+══════════════════ */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:50;opacity:0;pointer-events:none;transition:opacity 0.3s;display:flex;align-items:flex-end;justify-content:center}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-sheet{background:var(--card);border:1px solid var(--border);border-radius:24px 24px 0 0;width:100%;max-width:480px;padding:20px 20px 40px;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);max-height:92vh;overflow-y:auto}
+.modal-overlay.open .modal-sheet{transform:translateY(0)}
+.modal-handle{width:40px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 20px}
+.modal-title{font-family:var(--font-d);font-size:13px;letter-spacing:3px;color:var(--text);margin-bottom:20px;text-transform:uppercase}
+
+/* ── FORM ── */
+.field-label{font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;text-transform:uppercase}
+.field-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px 16px;font-family:var(--font-b);font-size:15px;color:var(--text);outline:none;margin-bottom:14px;transition:border-color 0.2s;user-select:text}
+.field-input:focus{border-color:var(--cyan)}
+.field-input.purple-inp:focus{border-color:var(--purple)}
+.field-input.yellow-inp:focus{border-color:var(--yellow)}
+textarea.field-input{resize:none;height:110px;line-height:1.6}
+.pass-field-wrap{position:relative;margin-bottom:14px}
+.pass-field-wrap .field-input{margin-bottom:0;padding-right:48px}
+.pass-toggle{position:absolute;right:13px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:4px}
+
+.modal-btn{width:100%;padding:15px;border-radius:14px;border:none;font-family:var(--font-d);font-size:12px;letter-spacing:2px;cursor:pointer;transition:all 0.2s;margin-top:4px}
+.modal-btn.save-pass{background:var(--cyan);color:var(--bg);box-shadow:0 4px 16px var(--cyan-glow)}
+.modal-btn.save-note{background:var(--purple);color:#fff;box-shadow:0 4px 16px rgba(168,85,247,0.4)}
+.modal-btn.save-photo{background:var(--yellow);color:var(--bg);box-shadow:0 4px 16px rgba(255,217,61,0.3)}
+.modal-btn.save-pin{background:var(--purple);color:#fff;box-shadow:0 4px 16px rgba(168,85,247,0.4)}
+.modal-btn:active{transform:scale(0.97)}
+.modal-btn.delete-btn{background:transparent;border:1px solid var(--red);color:var(--red);margin-top:10px}
+.modal-btn.edit-btn{background:var(--card2);border:1px solid var(--border2);color:var(--text2);margin-top:8px}
+
+/* ── VIEW FIELDS ── */
+.view-field{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px 16px;font-size:15px;color:var(--text2);margin-bottom:14px;word-break:break-all;line-height:1.6;position:relative}
+.view-field-label{font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;text-transform:uppercase}
+.copy-btn{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:var(--cyan-dim);border:1px solid var(--cyan);border-radius:6px;padding:4px 10px;font-size:10px;letter-spacing:1px;color:var(--cyan);cursor:pointer}
+.copy-btn:active{background:var(--cyan);color:var(--bg)}
+.pass-masked{letter-spacing:4px;font-size:18px}
+.reveal-wrap{display:flex;align-items:center;gap:8px}
+.reveal-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:4px}
+.photo-preview-img{width:100%;border-radius:12px;border:1px solid var(--border);max-height:260px;object-fit:cover;margin-bottom:14px;display:block}
+
+/* ── PHOTO UPLOAD ── */
+.photo-upload-area{border:2px dashed var(--border2);border-radius:14px;padding:28px 20px;text-align:center;cursor:pointer;margin-bottom:14px;transition:all 0.2s}
+.photo-upload-area:active{border-color:var(--yellow);background:var(--yellow-dim)}
+.photo-upload-area p{font-size:13px;color:var(--muted);margin-top:8px;letter-spacing:1px}
+#photoFileInput{display:none}
+.photo-source-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.photo-src-btn{background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:16px 10px;text-align:center;cursor:pointer;transition:all 0.2s;font-size:24px}
+.photo-src-btn p{font-size:11px;letter-spacing:1px;color:var(--muted);margin-top:6px}
+.photo-src-btn:active{border-color:var(--yellow);background:var(--yellow-dim)}
+#cameraStream{width:100%;border-radius:12px;display:none;margin-bottom:10px;max-height:200px;object-fit:cover;border:1px solid var(--border)}
+#cameraCaptureBtn{display:none;width:100%;margin-bottom:10px}
+
+/* ── LOCKED ── */
+#screenLocked{justify-content:center}
+.locked-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:36px 24px;text-align:center;max-width:300px;width:100%}
+
+/* ── SETTINGS MODAL ── */
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
+.settings-row:last-child{border-bottom:none}
+.settings-label{font-size:14px;color:var(--text);letter-spacing:0.5px}
+.settings-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.settings-arrow{color:var(--muted);font-size:18px;cursor:pointer}
+
+/* ── CHANGE PIN MODAL ── */
+.change-pin-step{font-size:11px;letter-spacing:2px;color:var(--purple);text-align:center;margin-bottom:6px;text-transform:uppercase}
+.change-pin-title{font-size:12px;letter-spacing:2px;color:var(--muted);text-align:center;margin-bottom:20px;text-transform:uppercase}
+.cp-dots{display:flex;gap:12px;justify-content:center;margin-bottom:22px}
+.cp-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all 0.2s}
+.cp-dot.filled{background:var(--purple);border-color:var(--purple);box-shadow:0 0 10px rgba(168,85,247,0.5)}
+.cp-dot.error{background:var(--red);border-color:var(--red);animation:shake 0.4s ease}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card2);border:1px solid var(--border2);border-radius:20px;padding:10px 20px;font-size:13px;letter-spacing:1px;color:var(--text);opacity:0;transition:all 0.3s;z-index:200;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── SEARCH HIGHLIGHT ── */
+.highlight{background:rgba(0,245,255,0.2);border-radius:3px;color:var(--cyan)}
+
+/* ══════════════════════════
+   BACKUP / RESTORE / EMERGENCY
+══════════════════════════ */
+.action-btn{width:100%;padding:15px;border-radius:14px;border:none;font-family:var(--font-d);font-size:12px;letter-spacing:2px;cursor:pointer;transition:all 0.2s;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px}
+.action-btn:active{transform:scale(0.97)}
+.btn-backup{background:var(--cyan-dim);border:1px solid var(--cyan);color:var(--cyan)}
+.btn-restore{background:var(--purple-dim);border:1px solid var(--purple);color:var(--purple)}
+.btn-cloud{background:linear-gradient(135deg,rgba(0,245,255,0.15),rgba(168,85,247,0.15));border:1px solid var(--cyan);color:var(--cyan)}
+.btn-emergency{background:rgba(255,56,96,0.1);border:1px solid var(--red);color:var(--red)}
+.sync-status{text-align:center;font-size:11px;letter-spacing:1px;padding:8px;border-radius:8px;margin-bottom:10px}
+.sync-ok{background:rgba(0,255,136,0.1);color:var(--green);border:1px solid var(--green)}
+.sync-off{background:rgba(107,107,138,0.1);color:var(--muted);border:1px solid var(--border)}
+.sync-err{background:rgba(255,56,96,0.1);color:var(--red);border:1px solid var(--red)}
+
+/* Emergency ID display */
+.eid-box{background:var(--surface);border:2px solid var(--cyan);border-radius:14px;padding:16px;text-align:center;margin-bottom:14px}
+.eid-label{font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;text-transform:uppercase}
+.eid-value{font-family:var(--font-d);font-size:20px;letter-spacing:4px;color:var(--cyan);text-shadow:0 0 10px var(--cyan-glow)}
+.eid-note{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5}
+
+/* Emergency viewer screen */
+#screenEmergency{background:var(--bg);justify-content:flex-start;padding-top:0;overflow-y:auto}
+.ev-topbar{position:sticky;top:0;width:100%;background:rgba(10,10,15,0.97);backdrop-filter:blur(12px);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--red);z-index:20}
+.ev-logo{font-family:var(--font-d);font-size:13px;letter-spacing:3px;color:var(--red)}
+.ev-logout{background:var(--red-dim);border:1px solid var(--red);border-radius:8px;padding:6px 14px;font-size:12px;letter-spacing:1px;color:var(--red);cursor:pointer}
+.ev-body{width:100%;max-width:420px;padding:16px;margin:0 auto}
+.ev-warning{background:rgba(255,56,96,0.08);border:1px solid var(--red);border-radius:12px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--red);letter-spacing:0.5px;line-height:1.6;text-align:center}
+.ev-section-title{font-family:var(--font-d);font-size:11px;letter-spacing:3px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:8px}
+.ev-item{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:8px}
+.ev-item-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px}
+.ev-item-row{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.ev-item-label{font-size:11px;color:var(--muted);letter-spacing:1px}
+.ev-item-val{font-size:13px;color:var(--text2);text-align:right;max-width:60%;word-break:break-all}
+.ev-copy{background:var(--cyan-dim);border:1px solid var(--cyan);border-radius:6px;padding:3px 8px;font-size:10px;color:var(--cyan);cursor:pointer;flex-shrink:0;margin-left:8px}
+.ev-photo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px}
+.ev-photo-card{background:var(--card2);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer}
+.ev-photo-card img{width:100%;height:100px;object-fit:cover;display:block}
+.ev-photo-label{font-size:11px;color:var(--text2);padding:6px;text-align:center;letter-spacing:1px}
+
+/* Emergency Login screen */
+#screenEmLogin{background:var(--bg)}
+.em-login-card{background:var(--card);border:2px solid var(--red);border-radius:20px;padding:24px 20px;width:100%;max-width:340px;position:relative;overflow:hidden}
+.em-login-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--red),transparent)}
+.em-field{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px 16px;font-family:var(--font-b);font-size:15px;color:var(--text);outline:none;margin-bottom:12px;user-select:text}
+.em-field:focus{border-color:var(--red)}
+.em-login-btn{width:100%;padding:15px;border-radius:14px;border:none;background:var(--red);color:#fff;font-family:var(--font-d);font-size:13px;letter-spacing:2px;cursor:pointer;margin-top:4px}
+.em-login-btn:active{transform:scale(0.97)}
+
+/* ══════════════════════════
+   INSTALL GUIDE BANNER
+══════════════════════════ */
+.install-banner{
+  position:fixed;bottom:0;left:0;right:0;
+  background:linear-gradient(135deg,#0d0d1a,#111122);
+  border-top:2px solid var(--cyan);
+  padding:16px 20px 28px;
+  z-index:500;
+  transform:translateY(100%);
+  transition:transform 0.4s cubic-bezier(0.32,0.72,0,1);
+  box-shadow:0 -8px 40px rgba(0,245,255,0.15);
+}
+.install-banner.show{transform:translateY(0)}
+.install-banner-handle{width:40px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 16px}
+.install-banner-title{font-family:var(--font-d);font-size:13px;letter-spacing:3px;color:var(--cyan);margin-bottom:4px;text-align:center}
+.install-banner-sub{font-size:12px;color:var(--muted);text-align:center;letter-spacing:1px;margin-bottom:16px}
+.install-steps{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.install-step{display:flex;align-items:center;gap:12px;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.install-step-num{width:28px;height:28px;border-radius:50%;background:var(--cyan-dim);border:1px solid var(--cyan);display:flex;align-items:center;justify-content:center;font-family:var(--font-d);font-size:12px;color:var(--cyan);flex-shrink:0}
+.install-step-text{font-size:13px;color:var(--text2);line-height:1.5}
+.install-step-text b{color:var(--cyan)}
+.install-step-icon{font-size:20px;flex-shrink:0}
+.install-banner-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.install-got-it{background:var(--cyan);color:var(--bg);border:none;border-radius:12px;padding:14px;font-family:var(--font-d);font-size:12px;letter-spacing:2px;cursor:pointer;box-shadow:0 4px 16px var(--cyan-glow)}
+.install-got-it:active{transform:scale(0.97)}
+.install-dismiss{background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:12px;padding:14px;font-family:var(--font-d);font-size:11px;letter-spacing:1px;cursor:pointer}
+.install-dismiss:active{color:var(--red);border-color:var(--red)}
+
+/* Install FAB — floating install button */
+.install-fab{
+  position:fixed;bottom:96px;right:24px;
+  background:var(--green);color:var(--bg);
+  border:none;border-radius:14px;
+  padding:10px 14px;
+  font-family:var(--font-d);font-size:10px;letter-spacing:1px;
+  cursor:pointer;z-index:40;
+  box-shadow:0 4px 16px rgba(0,255,136,0.4);
+  display:none;
+  animation:installPulse 2s ease-in-out infinite;
+}
+@keyframes installPulse{0%,100%{box-shadow:0 4px 16px rgba(0,255,136,0.4)}50%{box-shadow:0 4px 28px rgba(0,255,136,0.7)}}
+.install-fab:active{transform:scale(0.95)}
+</style>
+</head>
+<body>
+
+<div id="intruderFlash"></div>
+<video id="intruderCam" playsinline muted></video>
+<canvas id="intruderCanvas"></canvas>
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════ SETUP ═══════════ -->
+<div class="screen active" id="screenSetup">
+  <div class="logo-wrap">
+    <div class="logo-icon"><svg viewBox="0 0 36 36" fill="none"><rect x="8" y="14" width="20" height="16" rx="4" stroke="#00f5ff" stroke-width="2"/><path d="M12 14v-3a6 6 0 0 1 12 0v3" stroke="#00f5ff" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="22" r="2.5" fill="#00f5ff"/><line x1="18" y1="24.5" x2="18" y2="27" stroke="#00f5ff" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="logo-title">CYBERVAULT</div>
+    <div class="logo-sub">Secure Personal Locker</div>
+    <div class="version-badge">▸ VERSION 6.0 — LIVE</div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="setup-step" id="setupStepLabel">Step 1 of 2 — Create PIN</div>
+    <div class="card-title" id="setupCardTitle">Choose a 4-digit PIN</div>
+    <div class="pin-display"><div class="pin-dot" id="sd0"></div><div class="pin-dot" id="sd1"></div><div class="pin-dot" id="sd2"></div><div class="pin-dot" id="sd3"></div></div>
+    <div class="numpad">
+      <button class="num-btn" onclick="numPress('setup','1')">1</button><button class="num-btn" onclick="numPress('setup','2')">2</button><button class="num-btn" onclick="numPress('setup','3')">3</button>
+      <button class="num-btn" onclick="numPress('setup','4')">4</button><button class="num-btn" onclick="numPress('setup','5')">5</button><button class="num-btn" onclick="numPress('setup','6')">6</button>
+      <button class="num-btn" onclick="numPress('setup','7')">7</button><button class="num-btn" onclick="numPress('setup','8')">8</button><button class="num-btn" onclick="numPress('setup','9')">9</button>
+      <button class="num-btn empty"></button><button class="num-btn" onclick="numPress('setup','0')">0</button><button class="num-btn del-btn" onclick="numDel('setup')">⌫</button>
+    </div>
+    <div class="status-msg" id="setupStatus"></div>
+  </div>
+</div>
+
+<!-- ═══════════ LOGIN ═══════════ -->
+<div class="screen" id="screenLogin">
+  <div class="logo-wrap">
+    <div class="logo-icon"><svg viewBox="0 0 36 36" fill="none"><rect x="8" y="14" width="20" height="16" rx="4" stroke="#00f5ff" stroke-width="2"/><path d="M12 14v-3a6 6 0 0 1 12 0v3" stroke="#00f5ff" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="22" r="2.5" fill="#00f5ff"/><line x1="18" y1="24.5" x2="18" y2="27" stroke="#00f5ff" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="logo-title">CYBERVAULT</div>
+    <div class="logo-sub">Enter PIN to unlock</div>
+    <div class="version-badge">▸ VERSION 6.0 — LIVE</div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">ENTER PIN</div>
+    <div class="pin-display"><div class="pin-dot" id="ld0"></div><div class="pin-dot" id="ld1"></div><div class="pin-dot" id="ld2"></div><div class="pin-dot" id="ld3"></div></div>
+    <div class="numpad">
+      <button class="num-btn" onclick="numPress('login','1')">1</button><button class="num-btn" onclick="numPress('login','2')">2</button><button class="num-btn" onclick="numPress('login','3')">3</button>
+      <button class="num-btn" onclick="numPress('login','4')">4</button><button class="num-btn" onclick="numPress('login','5')">5</button><button class="num-btn" onclick="numPress('login','6')">6</button>
+      <button class="num-btn" onclick="numPress('login','7')">7</button><button class="num-btn" onclick="numPress('login','8')">8</button><button class="num-btn" onclick="numPress('login','9')">9</button>
+      <button class="num-btn empty"></button><button class="num-btn" onclick="numPress('login','0')">0</button><button class="num-btn del-btn" onclick="numDel('login')">⌫</button>
+    </div>
+    <div class="attempt-bar" id="attemptBar"><div class="attempt-dot" id="a0"></div><div class="attempt-dot" id="a1"></div><div class="attempt-dot" id="a2"></div></div>
+    <div class="status-msg" id="loginStatus"></div>
+    <div style="text-align:center;margin-top:16px">
+      <button style="background:rgba(255,56,96,0.1);border:1px solid var(--red);border-radius:10px;padding:8px 20px;color:var(--red);font-size:12px;letter-spacing:1px;cursor:pointer" onclick="showScreen('screenEmLogin')">🆘 Emergency Access</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ VAULT ═══════════ -->
+<div class="screen" id="screenVault">
+  <div class="vault-topbar">
+    <div><div class="vault-topbar-logo">⚡ CYBERVAULT</div><div class="vault-topbar-v">V6.0 — LIVE ON WEB</div></div>
+    <div class="topbar-right">
+      <button class="icon-btn" onclick="openModal('modalSettings')" title="Settings">⚙️</button>
+      <button class="lock-btn" onclick="logout()">🔒 LOCK</button>
+    </div>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="search-bar-wrap">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-bar" id="searchBar" type="text" placeholder="Search passwords, notes, photos..." oninput="handleSearch(this.value)">
+      <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
+    </div>
+  </div>
+
+  <div class="vault-body">
+    <!-- Intruder Banner -->
+    <div class="intruder-banner" id="intruderBanner" onclick="toggleIntruderPhotos()">
+      <div class="intruder-banner-top"><span>⚠</span><span id="intruderBannerText">INTRUDER DETECTED</span></div>
+      <div class="intruder-thumbs" id="intruderThumbs"></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card sc-pass" onclick="switchTab('pass')"><div class="stat-num" id="countPass">0</div><div class="stat-label">PASSWORDS</div></div>
+      <div class="stat-card sc-note" onclick="switchTab('note')"><div class="stat-num" id="countNote">0</div><div class="stat-label">NOTES</div></div>
+      <div class="stat-card sc-photo" onclick="switchTab('photo')"><div class="stat-num" id="countPhoto">0</div><div class="stat-label">PHOTOS</div></div>
+    </div>
+
+    <!-- Search Results -->
+    <div id="searchResults" style="display:none">
+      <div style="font-size:11px;letter-spacing:2px;color:var(--cyan);margin-bottom:10px" id="searchResultLabel">SEARCH RESULTS</div>
+      <div id="searchResultsList"></div>
+    </div>
+
+    <!-- Tabs -->
+    <div id="normalContent">
+      <div class="section-tabs">
+        <button class="tab-btn active-pass" id="tabPass" onclick="switchTab('pass')">🔑 Passwords</button>
+        <button class="tab-btn" id="tabNote" onclick="switchTab('note')">📝 Notes</button>
+        <button class="tab-btn" id="tabPhoto" onclick="switchTab('photo')">🖼 Photos</button>
+      </div>
+      <div class="panel active" id="panelPass"><div id="passList"></div></div>
+      <div class="panel" id="panelNote"><div id="noteList"></div></div>
+      <div class="panel" id="panelPhoto"><div id="photoList"></div></div>
+    </div>
+  </div>
+
+  <button class="add-fab" id="addFab" onclick="openAddModal()">＋</button>
+</div>
+
+<!-- ═══════════ LOCKED ═══════════ -->
+<div class="screen" id="screenLocked">
+  <div class="locked-card">
+    <div style="font-size:52px;margin-bottom:16px">🔐</div>
+    <div style="font-family:var(--font-d);font-size:13px;letter-spacing:3px;color:var(--red);margin-bottom:12px">VAULT LOCKED</div>
+    <p style="color:var(--muted);font-size:13px;line-height:1.8;margin-bottom:20px">Too many wrong attempts.<br>Intruder photo captured.<br>Please wait.</p>
+    <div id="lockTimer" style="font-family:var(--font-d);font-size:32px;color:var(--cyan);letter-spacing:4px">30</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     MODAL: ADD PASSWORD
+════════════════════════════════ -->
+<div class="modal-overlay" id="modalAddPass" onclick="closeModalOnBg(event,'modalAddPass')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="addPassModalTitle">🔑 Add Password</div>
+    <div class="field-label">Site / App Name</div>
+    <input class="field-input" id="addPassSite" placeholder="e.g. Google, Instagram" type="text">
+    <div class="field-label">Username / Email</div>
+    <input class="field-input" id="addPassUser" placeholder="your@email.com" type="text">
+    <div class="field-label">Password</div>
+    <div class="pass-field-wrap">
+      <input class="field-input" id="addPassPwd" placeholder="Enter password" type="password">
+      <button class="pass-toggle" onclick="togglePassVis('addPassPwd',this)">👁</button>
+    </div>
+    <div class="field-label">Notes (optional)</div>
+    <input class="field-input" id="addPassNote" placeholder="Any extra info..." type="text">
+    <button class="modal-btn save-pass" id="savePassBtn" onclick="savePassword()">SAVE PASSWORD</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     MODAL: ADD NOTE
+════════════════════════════════ -->
+<div class="modal-overlay" id="modalAddNote" onclick="closeModalOnBg(event,'modalAddNote')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="addNoteModalTitle">📝 Add Secret Note</div>
+    <div class="field-label">Title</div>
+    <input class="field-input purple-inp" id="addNoteTitle" placeholder="e.g. Bank Details, Secret..." type="text">
+    <div class="field-label">Note Content</div>
+    <textarea class="field-input purple-inp" id="addNoteContent" placeholder="Write your secret note here..."></textarea>
+    <button class="modal-btn save-note" id="saveNoteBtn" onclick="saveNote()">SAVE NOTE</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     MODAL: ADD PHOTO
+════════════════════════════════ -->
+<div class="modal-overlay" id="modalAddPhoto" onclick="closeModalOnBg(event,'modalAddPhoto')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🖼 Add Photo / Document</div>
+    <div class="field-label">Label</div>
+    <input class="field-input yellow-inp" id="addPhotoLabel" placeholder="e.g. Aadhaar, PAN, Passport" type="text">
+
+    <!-- TWO BUTTONS: Gallery + Camera -->
+    <div class="photo-source-btns">
+      <div class="photo-src-btn" onclick="document.getElementById('photoFileInput').click()">
+        <div>🖼</div><p>Gallery / File</p>
+      </div>
+      <div class="photo-src-btn" onclick="startCamera()">
+        <div>📷</div><p>Camera</p>
+      </div>
+    </div>
+    <input type="file" id="photoFileInput" accept="image/*" onchange="handlePhotoSelect(event)">
+
+    <!-- Camera live preview -->
+    <video id="cameraStream" playsinline autoplay muted></video>
+    <button class="modal-btn save-photo" id="cameraCaptureBtn" onclick="captureFromCamera()" style="display:none;margin-bottom:10px">📷 CAPTURE PHOTO</button>
+    <button class="modal-btn edit-btn" id="cameraStopBtn" onclick="stopCamera()" style="display:none;margin-top:0;margin-bottom:10px">✕ Stop Camera</button>
+
+    <img id="photoPreview" style="display:none" class="photo-preview-img">
+    <button class="modal-btn save-photo" onclick="savePhoto()">💾 SAVE PHOTO</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     MODAL: VIEW PASSWORD
+════════════════════════════════ -->
+<div class="modal-overlay" id="modalViewPass" onclick="closeModalOnBg(event,'modalViewPass')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="viewPassTitle">PASSWORD</div>
+    <div class="view-field-label">Site / App</div>
+    <div class="view-field" style="position:relative"><span id="viewPassSiteText"></span><button class="copy-btn" onclick="copyText('viewPassSiteText')">COPY</button></div>
+    <div class="view-field-label">Username</div>
+    <div class="view-field" style="position:relative"><span id="viewPassUser"></span><button class="copy-btn" onclick="copyText('viewPassUser')">COPY</button></div>
+    <div class="view-field-label">Password</div>
+    <div class="view-field" style="position:relative">
+      <div class="reveal-wrap"><span id="viewPassPwd" class="pass-masked">••••••••</span><button class="reveal-btn" onclick="revealPassword()" id="revealBtn">👁</button></div>
+      <button class="copy-btn" onclick="copyText('viewPassPwd')" style="top:50%;transform:translateY(-50%)">COPY</button>
+    </div>
+    <div id="viewPassNoteWrap" style="display:none">
+      <div class="view-field-label">Notes</div>
+      <div class="view-field"><span id="viewPassNoteText"></span></div>
+    </div>
+    <div style="color:var(--muted);font-size:11px;letter-spacing:1px;margin-bottom:12px;text-align:center" id="viewPassDate"></div>
+    <button class="modal-btn edit-btn" onclick="editPassword()">✏️ EDIT</button>
+    <button class="modal-btn delete-btn" onclick="deleteItem('pass')">🗑 DELETE</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     MODAL: VIEW NOTE
+════════════════════════════════ -->
+<div class="modal-overlay" id="modalViewNote" onclick="closeModalOnBg(event,'modalViewNote')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="viewNoteTitle">NOTE</div>
+    <div class="view-field-label">Content</div>
+    <div class="view-field" id="viewNoteContent" style="line-height:1.7;white-space:pre-wrap"></div>
+    <div style="color:var(--muted);font-size:11px;letter-spacing:1px;margin-bottom:12px;text-align:center" id="viewNoteDate"></div>
+    <button class="modal-btn edit-btn" onclick="editNote()">✏️ EDIT</button>
+    <button class="modal-btn delete-btn" onclick="deleteItem('note')">🗑 DELETE</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     MODAL: VIEW PHOTO
+════════════════════════════════ -->
+<div class="modal-overlay" id="modalViewPhoto" onclick="closeModalOnBg(event,'modalViewPhoto')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="viewPhotoTitle">PHOTO</div>
+    <img id="viewPhotoImg" class="photo-preview-img">
+    <div style="color:var(--muted);font-size:11px;letter-spacing:1px;margin-bottom:12px;text-align:center" id="viewPhotoDate"></div>
+    <button class="modal-btn delete-btn" onclick="deleteItem('photo')">🗑 DELETE</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     MODAL: SETTINGS
+════════════════════════════════ -->
+<div class="modal-overlay" id="modalSettings" onclick="closeModalOnBg(event,'modalSettings')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">⚙️ Settings</div>
+    <div class="settings-row" onclick="openChangePIN()">
+      <div><div class="settings-label">🔄 Change PIN</div><div class="settings-sub">Update your vault PIN</div></div>
+      <div class="settings-arrow">›</div>
+    </div>
+    <div class="settings-row" onclick="closeModal('modalSettings');openModal('modalBackup')">
+      <div><div class="settings-label">📦 Backup & Restore</div><div class="settings-sub">Data ka backup lo ya restore karo</div></div>
+      <div class="settings-arrow">›</div>
+    </div>
+    <div class="settings-row" onclick="closeModal('modalSettings');openModal('modalCloudSync')">
+      <div><div class="settings-label">☁️ Cloud Sync</div><div class="settings-sub">Firebase pe data sync karo</div></div>
+      <div class="settings-arrow">›</div>
+    </div>
+    <div class="settings-row" onclick="closeModal('modalSettings');openModal('modalEmergencyID')">
+      <div><div class="settings-label">🆘 Emergency Access</div><div class="settings-sub">Doosre phone se data dekhna</div></div>
+      <div class="settings-arrow">›</div>
+    </div>
+    <div class="settings-row" onclick="closeModal('modalSettings');showInstallGuide()">
+      <div><div class="settings-label">📲 Install App Guide</div><div class="settings-sub">Home screen pe app jaisa lagao</div></div>
+      <div class="settings-arrow">›</div>
+    </div>
+    <div class="settings-row" onclick="clearIntruderPhotos()">
+      <div><div class="settings-label">🗑 Clear Intruder Photos</div><div class="settings-sub">Delete all captured intruder selfies</div></div>
+      <div class="settings-arrow">›</div>
+    </div>
+    <div class="settings-row">
+      <div><div class="settings-label">ℹ️ Version</div><div class="settings-sub">CyberVault v6.0 — debendrab009-byte.github.io/cybervault</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     MODAL: CHANGE PIN
+════════════════════════════════ -->
+<div class="modal-overlay" id="modalChangePIN" onclick="closeModalOnBg(event,'modalChangePIN')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔄 Change PIN</div>
+    <div class="change-pin-step" id="cpStepLabel">Step 1 of 3 — Current PIN</div>
+    <div class="change-pin-title" id="cpTitle">Enter your current PIN</div>
+    <div class="cp-dots"><div class="cp-dot" id="cp0"></div><div class="cp-dot" id="cp1"></div><div class="cp-dot" id="cp2"></div><div class="cp-dot" id="cp3"></div></div>
+    <div class="numpad">
+      <button class="num-btn purple-btn" onclick="numPress('cp','1')">1</button><button class="num-btn purple-btn" onclick="numPress('cp','2')">2</button><button class="num-btn purple-btn" onclick="numPress('cp','3')">3</button>
+      <button class="num-btn purple-btn" onclick="numPress('cp','4')">4</button><button class="num-btn purple-btn" onclick="numPress('cp','5')">5</button><button class="num-btn purple-btn" onclick="numPress('cp','6')">6</button>
+      <button class="num-btn purple-btn" onclick="numPress('cp','7')">7</button><button class="num-btn purple-btn" onclick="numPress('cp','8')">8</button><button class="num-btn purple-btn" onclick="numPress('cp','9')">9</button>
+      <button class="num-btn empty"></button><button class="num-btn purple-btn" onclick="numPress('cp','0')">0</button><button class="num-btn del-btn" onclick="numDel('cp')">⌫</button>
+    </div>
+    <div class="status-msg" id="cpStatus"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     MODAL: BACKUP & RESTORE
+════════════════════════════════ -->
+<div class="modal-overlay" id="modalBackup" onclick="closeModalOnBg(event,'modalBackup')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📦 Backup & Restore</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;letter-spacing:0.5px;line-height:1.7">Apne vault ka encrypted backup lo. File aapke phone mein save hogi.</p>
+    <button class="action-btn btn-backup" onclick="downloadBackup()">⬇️ BACKUP DOWNLOAD KARO</button>
+    <div style="height:1px;background:var(--border);margin:8px 0 16px"></div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.7">Pehle ka backup restore karo:</p>
+    <input type="file" id="restoreFileInput" accept=".cvbackup,.json" style="display:none" onchange="restoreBackup(event)">
+    <button class="action-btn btn-restore" onclick="document.getElementById('restoreFileInput').click()">⬆️ BACKUP RESTORE KARO</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     MODAL: CLOUD SYNC
+════════════════════════════════ -->
+<div class="modal-overlay" id="modalCloudSync" onclick="closeModalOnBg(event,'modalCloudSync')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">☁️ Cloud Sync</div>
+    <div class="sync-status sync-off" id="syncStatusBadge">● Firebase: Connecting...</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.7">Aapka data <b style="color:var(--cyan)">encrypted</b> Firebase pe sync hoga.</p>
+    <button class="action-btn btn-cloud" onclick="syncToCloud()">☁️ ABHI SYNC KARO</button>
+    <button class="action-btn btn-restore" style="margin-top:0" onclick="loadFromCloud()">⬇️ CLOUD SE LOAD KARO</button>
+    <div style="background:rgba(0,245,255,0.05);border:1px solid var(--border);border-radius:12px;padding:12px;font-size:12px;color:var(--muted);line-height:1.7;margin-top:8px">🔐 Data encrypted hoke Firebase mein jaata hai. Bina PIN ke koi nahi dekh sakta.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     MODAL: EMERGENCY ID
+════════════════════════════════ -->
+<div class="modal-overlay" id="modalEmergencyID" onclick="closeModalOnBg(event,'modalEmergencyID')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🆘 Emergency Access</div>
+    <div class="eid-box">
+      <div class="eid-label">Aapka Secret ID</div>
+      <div class="eid-value" id="emergencyIDDisplay">----</div>
+      <div class="eid-note">Yeh ID aur aapka PIN — dono yaad rakhein.</div>
+    </div>
+    <div style="background:rgba(255,56,96,0.08);border:1px solid var(--red);border-radius:12px;padding:12px;font-size:12px;color:var(--red);line-height:1.7;margin-bottom:14px">⚠️ Pehle Cloud Sync karo — tabhi emergency mein data milega!</div>
+    <button class="action-btn btn-cloud" onclick="closeModal('modalEmergencyID');syncToCloud()">☁️ PEHLE SYNC KARO</button>
+    <button class="action-btn" style="background:transparent;border:1px solid var(--border);color:var(--muted)" onclick="copyEmergencyID()">📋 SECRET ID COPY KARO</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     SCREEN: EMERGENCY LOGIN
+════════════════════════════════ -->
+<div class="screen" id="screenEmLogin">
+  <div class="logo-wrap">
+    <div class="logo-icon" style="border-color:var(--red);box-shadow:0 0 24px rgba(255,56,96,0.4)">
+      <svg viewBox="0 0 36 36" fill="none"><rect x="8" y="14" width="20" height="16" rx="4" stroke="#ff3860" stroke-width="2"/><path d="M12 14v-3a6 6 0 0 1 12 0v3" stroke="#ff3860" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="22" r="2.5" fill="#ff3860"/></svg>
+    </div>
+    <div class="logo-title" style="color:var(--red);text-shadow:0 0 20px rgba(255,56,96,0.5)">CYBERVAULT</div>
+    <div class="logo-sub">Emergency Access Mode</div>
+  </div>
+  <div class="em-login-card" style="margin-top:16px">
+    <div style="font-family:var(--font-d);font-size:11px;letter-spacing:3px;color:var(--red);text-align:center;margin-bottom:16px">🆘 EMERGENCY LOGIN</div>
+    <div class="field-label">Secret ID</div>
+    <input class="em-field" id="emSecretID" placeholder="Apna Secret ID dalein" type="text">
+    <div class="field-label">PIN</div>
+    <input class="em-field" id="emPIN" placeholder="4-digit PIN" type="password" maxlength="4">
+    <button class="em-login-btn" onclick="emergencyLogin()">🔓 EMERGENCY LOGIN</button>
+    <div class="status-msg" id="emLoginStatus"></div>
+    <div style="text-align:center;margin-top:14px">
+      <button style="background:none;border:none;color:var(--muted);font-size:12px;letter-spacing:1px;cursor:pointer" onclick="showScreen('screenLogin')">← Normal Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     SCREEN: EMERGENCY VIEWER
+════════════════════════════════ -->
+<div class="screen" id="screenEmergency">
+  <div class="ev-topbar">
+    <div class="ev-logo">🆘 EMERGENCY VIEW</div>
+    <button class="ev-logout" onclick="emergencyLogout()">✕ LOGOUT</button>
+  </div>
+  <div class="ev-body">
+    <div class="ev-warning">⚠️ Emergency Mode — Log out karne pe koi trace nahi rahega</div>
+    <div class="ev-section-title">🔑 Passwords</div>
+    <div id="evPassList"></div>
+    <div class="ev-section-title" style="margin-top:16px">📝 Notes</div>
+    <div id="evNoteList"></div>
+    <div class="ev-section-title" style="margin-top:16px">🖼 Photos</div>
+    <div class="ev-photo-grid" id="evPhotoGrid"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     MODAL: PHOTO FULLSCREEN (Emergency)
+════════════════════════════════ -->
+<div class="modal-overlay" id="modalEvPhoto" onclick="closeModal('modalEvPhoto')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="evPhotoTitle">PHOTO</div>
+    <img id="evPhotoFull" class="photo-preview-img">
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     INSTALL GUIDE BANNER
+════════════════════════════════ -->
+<div class="install-banner" id="installBanner">
+  <div class="install-banner-handle"></div>
+  <div class="install-banner-title">📲 INSTALL CYBERVAULT</div>
+  <div class="install-banner-sub">Home Screen pe App jaisa lagao — Free!</div>
+
+  <div class="install-steps">
+    <div class="install-step">
+      <div class="install-step-num">1</div>
+      <div class="install-step-icon">⋮</div>
+      <div class="install-step-text">Chrome mein <b>3 dots (⋮)</b> tap karo — upar right corner mein</div>
+    </div>
+    <div class="install-step">
+      <div class="install-step-num">2</div>
+      <div class="install-step-icon">🔧</div>
+      <div class="install-step-text"><b>"More tools"</b> select karo ya seedha <b>"Add to Home screen"</b> dhundho</div>
+    </div>
+    <div class="install-step">
+      <div class="install-step-num">3</div>
+      <div class="install-step-icon">➕</div>
+      <div class="install-step-text"><b>"Add to Home screen"</b> tap karo → <b>"Add"</b> press karo</div>
+    </div>
+    <div class="install-step">
+      <div class="install-step-num">4</div>
+      <div class="install-step-icon">🎉</div>
+      <div class="install-step-text">Done! Home screen pe <b>CyberVault</b> icon aa jayega!</div>
+    </div>
+  </div>
+
+  <div style="background:rgba(255,215,61,0.08);border:1px solid var(--yellow);border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--yellow);letter-spacing:0.5px;line-height:1.7">
+    ⚡ <b>Motorola Tip:</b> Agar "More tools" nahi dikh raha toh<br>
+    seedha <b>3 dots → "Add to Home screen"</b> try karo.<br>
+    Kuch phones mein yeh directly dikh jaata hai!
+  </div>
+
+  <div class="install-banner-btns">
+    <button class="install-got-it" onclick="dismissInstall(true)">✓ SAMAJH GAYA!</button>
+    <button class="install-dismiss" onclick="dismissInstall(false)">Baad Mein</button>
+  </div>
+</div>
+
+<!-- Install reminder FAB -->
+<button class="install-fab" id="installFab" onclick="showInstallGuide()">📲 INSTALL</button>
+
+<script>
+// ══════════════════════════════════════════
+//  CYBERVAULT v4 — Full Engine
+// ══════════════════════════════════════════
+
+function simpleHash(pin){const salt="CV2024SALT";let h=0;const str=pin+salt;for(let i=0;i<str.length;i++)h=((h<<5)-h+str.charCodeAt(i))|0;return btoa(String(h))}
+function xorEncrypt(text,key){let r='';for(let i=0;i<text.length;i++)r+=String.fromCharCode(text.charCodeAt(i)^key.charCodeAt(i%key.length));return btoa(unescape(encodeURIComponent(r)))}
+function xorDecrypt(enc,key){try{const text=decodeURIComponent(escape(atob(enc)));let r='';for(let i=0;i<text.length;i++)r+=String.fromCharCode(text.charCodeAt(i)^key.charCodeAt(i%key.length));return r}catch{return'[]'}}
+
+const App={
+  setup:{pin:'',confirm:'',phase:'create'},
+  login:{pin:'',attempts:0,maxAttempts:3},
+  cp:{step:'current',pin:'',newPin:'',confirm:''},
+  currentTab:'pass',currentItemId:null,currentItemType:null,
+  encKey:'',passwords:[],notes:[],photos:[],
+  editMode:false,cameraStream:null
+};
+
+// ── IndexedDB ──
+let db;
+function initDB(){
+  const req=indexedDB.open('CyberVaultDB3',1);
+  req.onupgradeneeded=e=>{const d=e.target.result;['vault','items'].forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:'key'})})};
+  req.onsuccess=e=>{db=e.target.result;checkFirstTime()};
+  req.onerror=()=>checkFirstTime();
+}
+function dbSet(store,key,value,cb){if(!db){if(cb)cb();return}const tx=db.transaction(store,'readwrite');tx.objectStore(store).put({key,value}).onsuccess=()=>{if(cb)cb()}}
+function dbGet(store,key,cb){if(!db){cb(null);return}const tx=db.transaction(store,'readonly');const req=tx.objectStore(store).get(key);req.onsuccess=()=>cb(req.result?req.result.value:null);req.onerror=()=>cb(null)}
+
+// ── Screen ──
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active')}
+function checkFirstTime(){dbGet('vault','pinHash',hash=>{if(hash||localStorage.getItem('cv_pin'))showScreen('screenLogin');else showScreen('screenSetup')})}
+
+// ── Dots ──
+function updateDots(prefix,length,error=false){for(let i=0;i<4;i++){const d=document.getElementById(prefix+i);if(!d)return;d.classList.remove('filled','error','purple-fill');if(i<length)d.classList.add(error?'error':(prefix==='cp'?'purple-fill':'filled'))}}
+function vibrate(ms){if(navigator.vibrate)navigator.vibrate(ms)}
+
+// ── Num Press ──
+function numPress(mode,num){
+  vibrate(10);
+  if(mode==='setup')handleSetup(num);
+  else if(mode==='login')handleLogin(num);
+  else if(mode==='cp')handleCP(num);
+}
+function numDel(mode){
+  vibrate(10);
+  if(mode==='setup'){if(App.setup.phase==='create'){App.setup.pin=App.setup.pin.slice(0,-1);updateDots('sd',App.setup.pin.length)}else{App.setup.confirm=App.setup.confirm.slice(0,-1);updateDots('sd',App.setup.confirm.length)}}
+  else if(mode==='login'){App.login.pin=App.login.pin.slice(0,-1);updateDots('ld',App.login.pin.length)}
+  else if(mode==='cp'){
+    const cp=App.cp;
+    if(cp.step==='current'){cp.pin=cp.pin.slice(0,-1);updateDots('cp',cp.pin.length)}
+    else if(cp.step==='new'){cp.newPin=cp.newPin.slice(0,-1);updateDots('cp',cp.newPin.length)}
+    else{cp.confirm=cp.confirm.slice(0,-1);updateDots('cp',cp.confirm.length)}
+  }
+}
+
+// ── SETUP ──
+function handleSetup(num){
+  const s=App.setup;
+  if(s.phase==='create'){if(s.pin.length>=4)return;s.pin+=num;updateDots('sd',s.pin.length);if(s.pin.length===4)setTimeout(()=>{s.phase='confirm';document.getElementById('setupStepLabel').textContent='Step 2 of 2 — Confirm PIN';document.getElementById('setupCardTitle').textContent='Re-enter PIN to confirm';document.getElementById('setupStatus').textContent='';updateDots('sd',0)},300)}
+  else{if(s.confirm.length>=4)return;s.confirm+=num;updateDots('sd',s.confirm.length);if(s.confirm.length===4)setTimeout(verifySetup,200)}
+}
+function verifySetup(){
+  const s=App.setup;
+  if(s.pin===s.confirm){const hash=simpleHash(s.pin);dbSet('vault','pinHash',hash);localStorage.setItem('cv_pin',hash);document.getElementById('setupStatus').className='status-msg success';document.getElementById('setupStatus').textContent='✓ PIN created!';vibrate([50,30,50]);setTimeout(()=>showScreen('screenLogin'),1000)}
+  else{updateDots('sd',4,true);document.getElementById('setupStatus').className='status-msg error';document.getElementById('setupStatus').textContent='✗ PINs do not match!';vibrate([100,50,100]);setTimeout(()=>{s.pin='';s.confirm='';s.phase='create';document.getElementById('setupStepLabel').textContent='Step 1 of 2 — Create PIN';document.getElementById('setupCardTitle').textContent='Choose a 4-digit PIN';document.getElementById('setupStatus').textContent='';updateDots('sd',0)},1200)}
+}
+
+// ── LOGIN ──
+function handleLogin(num){const l=App.login;if(l.pin.length>=4)return;l.pin+=num;updateDots('ld',l.pin.length);if(l.pin.length===4)setTimeout(checkPin,200)}
+function checkPin(){
+  const l=App.login;const entered=simpleHash(l.pin);const stored=localStorage.getItem('cv_pin');
+  dbGet('vault','pinHash',hash=>{
+    const correct=hash||stored;
+    if(entered===correct){
+      App.encKey=l.pin+'CYBERVAULT_ENC_KEY';updateDots('ld',4);
+      document.getElementById('loginStatus').className='status-msg success';document.getElementById('loginStatus').textContent='✓ Access granted!';vibrate([50,30,80]);
+      l.attempts=0;l.pin='';setTimeout(()=>{showScreen('screenVault');loadAllData();checkIntruderPhotos()},600)
+    }else{
+      l.attempts++;updateDots('ld',4,true);vibrate([150,50,150]);markAttempt(l.attempts);
+      if(l.attempts>=l.maxAttempts){document.getElementById('loginStatus').className='status-msg error';document.getElementById('loginStatus').textContent='⚠ Vault locked!';captureIntruder();setTimeout(startLockdown,600)}
+      else{const left=l.maxAttempts-l.attempts;document.getElementById('loginStatus').className='status-msg error';document.getElementById('loginStatus').textContent=`✗ Wrong PIN — ${left} attempt${left>1?'s':''} left`;setTimeout(()=>{l.pin='';updateDots('ld',0);document.getElementById('loginStatus').textContent=''},1000)}
+    }
+  });
+}
+function markAttempt(n){for(let i=0;i<n;i++){const d=document.getElementById('a'+i);if(d)d.classList.add('used')}}
+function resetAttemptBar(){for(let i=0;i<3;i++){const d=document.getElementById('a'+i);if(d)d.classList.remove('used')}}
+
+// ── CHANGE PIN ──
+function openChangePIN(){closeModal('modalSettings');App.cp={step:'current',pin:'',newPin:'',confirm:''};document.getElementById('cpStepLabel').textContent='Step 1 of 3 — Current PIN';document.getElementById('cpTitle').textContent='Enter your current PIN';document.getElementById('cpStatus').textContent='';updateDots('cp',0);openModal('modalChangePIN')}
+function handleCP(num){
+  const cp=App.cp;
+  if(cp.step==='current'){if(cp.pin.length>=4)return;cp.pin+=num;updateDots('cp',cp.pin.length);if(cp.pin.length===4)setTimeout(verifyCPCurrent,200)}
+  else if(cp.step==='new'){if(cp.newPin.length>=4)return;cp.newPin+=num;updateDots('cp',cp.newPin.length);if(cp.newPin.length===4)setTimeout(()=>{cp.step='confirm';document.getElementById('cpStepLabel').textContent='Step 3 of 3 — Confirm New PIN';document.getElementById('cpTitle').textContent='Re-enter new PIN';document.getElementById('cpStatus').textContent='';updateDots('cp',0)},300)}
+  else{if(cp.confirm.length>=4)return;cp.confirm+=num;updateDots('cp',cp.confirm.length);if(cp.confirm.length===4)setTimeout(verifyCPNew,200)}
+}
+function verifyCPCurrent(){
+  const cp=App.cp;const entered=simpleHash(cp.pin);const stored=localStorage.getItem('cv_pin');
+  dbGet('vault','pinHash',hash=>{
+    const correct=hash||stored;
+    if(entered===correct){cp.step='new';document.getElementById('cpStepLabel').textContent='Step 2 of 3 — New PIN';document.getElementById('cpTitle').textContent='Enter your new PIN';document.getElementById('cpStatus').className='status-msg success';document.getElementById('cpStatus').textContent='✓ Current PIN verified';setTimeout(()=>{document.getElementById('cpStatus').textContent='';updateDots('cp',0)},800)}
+    else{updateDots('cp',4,true);document.getElementById('cpStatus').className='status-msg error';document.getElementById('cpStatus').textContent='✗ Wrong PIN!';vibrate([100,50,100]);setTimeout(()=>{cp.pin='';updateDots('cp',0);document.getElementById('cpStatus').textContent=''},1200)}
+  });
+}
+function verifyCPNew(){
+  const cp=App.cp;
+  if(cp.newPin===cp.confirm){
+    const newHash=simpleHash(cp.newPin);
+    // Re-encrypt all data with new key
+    const oldKey=App.encKey;const newKey=cp.newPin+'CYBERVAULT_ENC_KEY';
+    const reEncrypt=(type,cb)=>{
+      dbGet('items',type+'s',data=>{
+        if(data){const decrypted=xorDecrypt(data,oldKey);const reEnc=xorEncrypt(decrypted,newKey);dbSet('items',type+'s',reEnc,cb)}else if(cb)cb()
+      })
+    };
+    reEncrypt('password',()=>reEncrypt('note',()=>reEncrypt('photo',()=>{
+      dbSet('vault','pinHash',newHash);localStorage.setItem('cv_pin',newHash);
+      App.encKey=newKey;
+      updateDots('cp',4);document.getElementById('cpStatus').className='status-msg success';document.getElementById('cpStatus').textContent='✓ PIN changed successfully!';vibrate([50,30,80]);
+      setTimeout(()=>closeModal('modalChangePIN'),1200);showToast('✓ PIN changed!');
+    })));
+  }else{
+    updateDots('cp',4,true);document.getElementById('cpStatus').className='status-msg error';document.getElementById('cpStatus').textContent='✗ PINs do not match!';vibrate([100,50,100]);
+    setTimeout(()=>{cp.newPin='';cp.confirm='';cp.step='new';document.getElementById('cpStepLabel').textContent='Step 2 of 3 — New PIN';document.getElementById('cpTitle').textContent='Enter your new PIN';document.getElementById('cpStatus').textContent='';updateDots('cp',0)},1200)
+  }
+}
+
+// ── INTRUDER ──
+async function captureIntruder(){
+  const flash=document.getElementById('intruderFlash');flash.style.opacity='0.6';setTimeout(()=>flash.style.opacity='0',300);
+  try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});const video=document.getElementById('intruderCam');video.srcObject=stream;await video.play();await new Promise(r=>setTimeout(r,800));const canvas=document.getElementById('intruderCanvas');canvas.width=320;canvas.height=240;canvas.getContext('2d').drawImage(video,0,0,320,240);const imgData=canvas.toDataURL('image/jpeg',0.7);stream.getTracks().forEach(t=>t.stop());const photos=JSON.parse(localStorage.getItem('cv_intruders')||'[]');photos.push({time:new Date().toISOString(),img:imgData});localStorage.setItem('cv_intruders',JSON.stringify(photos.slice(-5)))}
+  catch(e){const photos=JSON.parse(localStorage.getItem('cv_intruders')||'[]');photos.push({time:new Date().toISOString(),img:null});localStorage.setItem('cv_intruders',JSON.stringify(photos.slice(-5)))}
+}
+function checkIntruderPhotos(){const photos=JSON.parse(localStorage.getItem('cv_intruders')||'[]');if(!photos.length)return;const thumbs=document.getElementById('intruderThumbs');thumbs.innerHTML='';let count=0;photos.forEach(p=>{if(p.img){count++;const img=document.createElement('img');img.src=p.img;thumbs.appendChild(img)}});if(count>0){document.getElementById('intruderBannerText').textContent=`⚠ ${count} INTRUDER ATTEMPT${count>1?'S':''} DETECTED`;document.getElementById('intruderBanner').style.display='block'}}
+function toggleIntruderPhotos(){const t=document.getElementById('intruderThumbs');t.style.display=t.style.display==='none'?'flex':'none'}
+function clearIntruderPhotos(){localStorage.removeItem('cv_intruders');document.getElementById('intruderBanner').style.display='none';closeModal('modalSettings');showToast('🗑 Intruder photos cleared')}
+
+// ── LOCKDOWN ──
+function startLockdown(){showScreen('screenLocked');let t=30;document.getElementById('lockTimer').textContent=t;const iv=setInterval(()=>{t--;document.getElementById('lockTimer').textContent=t;if(t<=0){clearInterval(iv);App.login.attempts=0;App.login.pin='';resetAttemptBar();updateDots('ld',0);document.getElementById('loginStatus').textContent='';showScreen('screenLogin')}},1000)}
+
+// ── LOGOUT ──
+function logout(){App.login.pin='';App.encKey='';App.passwords=[];App.notes=[];App.photos=[];updateDots('ld',0);document.getElementById('loginStatus').textContent='';document.getElementById('intruderBanner').style.display='none';document.getElementById('searchBar').value='';clearSearch();showScreen('screenLogin');vibrate(30)}
+
+// ══════════════════════════════
+//  DATA ENGINE
+// ══════════════════════════════
+function loadAllData(){
+  dbGet('items','passwords',data=>{
+    App.passwords=data?JSON.parse(xorDecrypt(data,App.encKey)):[];
+    dbGet('items','notes',d2=>{
+      App.notes=d2?JSON.parse(xorDecrypt(d2,App.encKey)):[];
+      dbGet('items','photos',d3=>{App.photos=d3?JSON.parse(xorDecrypt(d3,App.encKey)):[];renderAll()})
+    })
+  })
+}
+function saveAll(type,cb){const enc=xorEncrypt(JSON.stringify(App[type+'s']),App.encKey);dbSet('items',type+'s',enc,cb)}
+function renderAll(){updateStats();renderPasswords();renderNotes();renderPhotos()}
+function updateStats(){document.getElementById('countPass').textContent=App.passwords.length;document.getElementById('countNote').textContent=App.notes.length;document.getElementById('countPhoto').textContent=App.photos.length}
+
+// ── TABS ──
+function switchTab(tab){App.currentTab=tab;['pass','note','photo'].forEach(t=>{document.getElementById('tab'+cap(t)).className='tab-btn'+(t===tab?' active-'+t:'');document.getElementById('panel'+cap(t)).classList.toggle('active',t===tab)});document.getElementById('addFab').className='add-fab'+(tab!=='pass'?' '+tab+'-mode':'')}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1)}
+function openAddModal(){
+  App.editMode=false;
+  if(App.currentTab==='pass'){document.getElementById('addPassModalTitle').textContent='🔑 Add Password';document.getElementById('savePassBtn').textContent='SAVE PASSWORD';clearPassForm();openModal('modalAddPass')}
+  else if(App.currentTab==='note'){document.getElementById('addNoteModalTitle').textContent='📝 Add Secret Note';document.getElementById('saveNoteBtn').textContent='SAVE NOTE';document.getElementById('addNoteTitle').value='';document.getElementById('addNoteContent').value='';openModal('modalAddNote')}
+  else{document.getElementById('addPhotoLabel').value='';document.getElementById('photoPreview').style.display='none';document.getElementById('photoFileInput').value='';pendingPhotoData=null;stopCamera();openModal('modalAddPhoto')}
+}
+
+// ── SEARCH ──
+function handleSearch(q){
+  const query=q.trim().toLowerCase();
+  document.getElementById('searchClear').style.display=query?'block':'none';
+  if(!query){document.getElementById('searchResults').style.display='none';document.getElementById('normalContent').style.display='block';return}
+  document.getElementById('normalContent').style.display='none';document.getElementById('searchResults').style.display='block';
+  const results=[];
+  App.passwords.forEach(p=>{if(p.site.toLowerCase().includes(query)||p.user.toLowerCase().includes(query)||p.note.toLowerCase().includes(query)){results.push({type:'pass',data:p})}});
+  App.notes.forEach(n=>{if(n.title.toLowerCase().includes(query)||n.content.toLowerCase().includes(query)){results.push({type:'note',data:n})}});
+  App.photos.forEach(ph=>{if(ph.label.toLowerCase().includes(query)){results.push({type:'photo',data:ph})}});
+  document.getElementById('searchResultLabel').textContent=`${results.length} RESULT${results.length!==1?'S':''} FOR "${q.toUpperCase()}"`;
+  const list=document.getElementById('searchResultsList');
+  if(!results.length){list.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><p>No results found for<br>"${escHtml(q)}"</p></div>`;return}
+  list.innerHTML=results.map(r=>{
+    if(r.type==='pass'){const p=r.data;return`<div class="item-card pass-item" onclick="viewPassword('${p.id}')"><div class="item-icon pi">🔑</div><div class="item-info"><div class="item-title">${hlText(escHtml(p.site),q)}</div><div class="item-sub">${escHtml(p.user)||'No username'}</div></div><div class="item-arrow">›</div></div>`}
+    if(r.type==='note'){const n=r.data;return`<div class="item-card note-item" onclick="viewNote('${n.id}')"><div class="item-icon ni">📝</div><div class="item-info"><div class="item-title">${hlText(escHtml(n.title),q)}</div><div class="item-sub">${escHtml(n.content.substring(0,40))}…</div></div><div class="item-arrow">›</div></div>`}
+    if(r.type==='photo'){const ph=r.data;return`<div class="item-card photo-item" onclick="viewPhoto('${ph.id}')"><div class="item-icon phi" style="overflow:hidden"><img src="${ph.img}" style="width:40px;height:40px;object-fit:cover;border-radius:10px"></div><div class="item-info"><div class="item-title">${hlText(escHtml(ph.label),q)}</div><div class="item-sub">Photo</div></div><div class="item-arrow">›</div></div>`}
+    return''
+  }).join('');
+}
+function hlText(text,query){if(!query)return text;const re=new RegExp('('+query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');return text.replace(re,'<span class="highlight">$1</span>')}
+function clearSearch(){document.getElementById('searchBar').value='';document.getElementById('searchClear').style.display='none';document.getElementById('searchResults').style.display='none';document.getElementById('normalContent').style.display='block'}
+
+// ── PASSWORDS ──
+function savePassword(){
+  const site=document.getElementById('addPassSite').value.trim();const user=document.getElementById('addPassUser').value.trim();const pwd=document.getElementById('addPassPwd').value;const note=document.getElementById('addPassNote').value.trim();
+  if(!site||!pwd){showToast('⚠ Site and Password required!');return}
+  if(App.editMode&&App.currentItemId){App.passwords=App.passwords.map(p=>p.id==App.currentItemId?{...p,site,user,pwd,note}:p)}
+  else{App.passwords.unshift({id:Date.now(),site,user,pwd,note,date:new Date().toLocaleDateString()})}
+  saveAll('password',()=>{renderAll();closeModal('modalAddPass');clearPassForm();showToast(App.editMode?'✓ Password updated!':'✓ Password saved!');vibrate([30,10,30]);App.editMode=false})
+}
+function clearPassForm(){['addPassSite','addPassUser','addPassPwd','addPassNote'].forEach(id=>document.getElementById(id).value='')}
+function renderPasswords(){
+  const el=document.getElementById('passList');
+  if(!App.passwords.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔑</div><p>No passwords saved yet.<br>Tap ＋ to add your first.</p></div>`;return}
+  el.innerHTML=App.passwords.map(p=>`<div class="item-card pass-item" onclick="viewPassword('${p.id}')"><div class="item-icon pi">🔑</div><div class="item-info"><div class="item-title">${escHtml(p.site)}</div><div class="item-sub">${escHtml(p.user)||'No username'}</div></div><div class="item-arrow">›</div></div>`).join('')
+}
+function viewPassword(id){
+  const p=App.passwords.find(x=>x.id==id);if(!p)return;App.currentItemId=id;App.currentItemType='pass';
+  document.getElementById('viewPassTitle').textContent='🔑 '+escHtml(p.site);document.getElementById('viewPassSiteText').textContent=p.site;document.getElementById('viewPassUser').textContent=p.user||'—';
+  document.getElementById('viewPassPwd').textContent='••••••••';document.getElementById('viewPassPwd').dataset.real=p.pwd;document.getElementById('viewPassPwd').className='pass-masked';document.getElementById('revealBtn').textContent='👁';
+  document.getElementById('viewPassDate').textContent='Saved: '+p.date;
+  const nw=document.getElementById('viewPassNoteWrap');if(p.note){nw.style.display='block';document.getElementById('viewPassNoteText').textContent=p.note}else nw.style.display='none';
+  openModal('modalViewPass')
+}
+function editPassword(){
+  const p=App.passwords.find(x=>x.id==App.currentItemId);if(!p)return;
+  closeModal('modalViewPass');App.editMode=true;
+  document.getElementById('addPassModalTitle').textContent='✏️ Edit Password';document.getElementById('savePassBtn').textContent='UPDATE PASSWORD';
+  document.getElementById('addPassSite').value=p.site;document.getElementById('addPassUser').value=p.user||'';document.getElementById('addPassPwd').value=p.pwd;document.getElementById('addPassPwd').type='text';document.getElementById('addPassNote').value=p.note||'';
+  openModal('modalAddPass')
+}
+function revealPassword(){const el=document.getElementById('viewPassPwd');const btn=document.getElementById('revealBtn');if(el.classList.contains('pass-masked')){el.textContent=el.dataset.real;el.classList.remove('pass-masked');btn.textContent='🙈'}else{el.textContent='••••••••';el.classList.add('pass-masked');btn.textContent='👁'}}
+
+// ── NOTES ──
+function saveNote(){
+  const title=document.getElementById('addNoteTitle').value.trim();const content=document.getElementById('addNoteContent').value.trim();
+  if(!title||!content){showToast('⚠ Title and content required!');return}
+  if(App.editMode&&App.currentItemId){App.notes=App.notes.map(n=>n.id==App.currentItemId?{...n,title,content}:n)}
+  else{App.notes.unshift({id:Date.now(),title,content,date:new Date().toLocaleDateString()})}
+  saveAll('note',()=>{renderAll();closeModal('modalAddNote');document.getElementById('addNoteTitle').value='';document.getElementById('addNoteContent').value='';showToast(App.editMode?'✓ Note updated!':'✓ Note saved!');vibrate([30,10,30]);App.editMode=false})
+}
+function renderNotes(){
+  const el=document.getElementById('noteList');
+  if(!App.notes.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">📝</div><p>No secret notes yet.<br>Tap ＋ to add one.</p></div>`;return}
+  el.innerHTML=App.notes.map(n=>`<div class="item-card note-item" onclick="viewNote('${n.id}')"><div class="item-icon ni">📝</div><div class="item-info"><div class="item-title">${escHtml(n.title)}</div><div class="item-sub">${escHtml(n.content.substring(0,40))}${n.content.length>40?'…':''}</div></div><div class="item-arrow">›</div></div>`).join('')
+}
+function viewNote(id){
+  const n=App.notes.find(x=>x.id==id);if(!n)return;App.currentItemId=id;App.currentItemType='note';
+  document.getElementById('viewNoteTitle').textContent='📝 '+escHtml(n.title);document.getElementById('viewNoteContent').textContent=n.content;document.getElementById('viewNoteDate').textContent='Saved: '+n.date;openModal('modalViewNote')
+}
+function editNote(){
+  const n=App.notes.find(x=>x.id==App.currentItemId);if(!n)return;
+  closeModal('modalViewNote');App.editMode=true;
+  document.getElementById('addNoteModalTitle').textContent='✏️ Edit Note';document.getElementById('saveNoteBtn').textContent='UPDATE NOTE';
+  document.getElementById('addNoteTitle').value=n.title;document.getElementById('addNoteContent').value=n.content;openModal('modalAddNote')
+}
+
+// ── PHOTOS ──
+let pendingPhotoData=null;
+function handlePhotoSelect(event){const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{pendingPhotoData=e.target.result;const preview=document.getElementById('photoPreview');preview.src=pendingPhotoData;preview.style.display='block';stopCamera()};reader.readAsDataURL(file)}
+
+async function startCamera(){
+  try{
+    stopCamera();
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+    App.cameraStream=stream;const video=document.getElementById('cameraStream');video.srcObject=stream;video.style.display='block';await video.play();
+    document.getElementById('cameraCaptureBtn').style.display='block';document.getElementById('cameraStopBtn').style.display='block';document.getElementById('photoPreview').style.display='none';pendingPhotoData=null;
+  }catch(e){showToast('⚠ Camera not available')}
+}
+function captureFromCamera(){
+  const video=document.getElementById('cameraStream');if(!video||!App.cameraStream)return;
+  const canvas=document.createElement('canvas');canvas.width=video.videoWidth||640;canvas.height=video.videoHeight||480;canvas.getContext('2d').drawImage(video,0,0);pendingPhotoData=canvas.toDataURL('image/jpeg',0.85);
+  const preview=document.getElementById('photoPreview');preview.src=pendingPhotoData;preview.style.display='block';stopCamera();showToast('📷 Photo captured!')
+}
+function stopCamera(){
+  if(App.cameraStream){App.cameraStream.getTracks().forEach(t=>t.stop());App.cameraStream=null}
+  document.getElementById('cameraStream').style.display='none';document.getElementById('cameraCaptureBtn').style.display='none';document.getElementById('cameraStopBtn').style.display='none';
+}
+function savePhoto(){
+  const label=document.getElementById('addPhotoLabel').value.trim();if(!label){showToast('⚠ Label required!');return}if(!pendingPhotoData){showToast('⚠ Please select or capture a photo!');return}
+  App.photos.unshift({id:Date.now(),label,img:pendingPhotoData,date:new Date().toLocaleDateString()});
+  saveAll('photo',()=>{renderAll();closeModal('modalAddPhoto');document.getElementById('addPhotoLabel').value='';document.getElementById('photoPreview').style.display='none';document.getElementById('photoFileInput').value='';pendingPhotoData=null;stopCamera();showToast('✓ Photo saved!');vibrate([30,10,30])})
+}
+function renderPhotos(){
+  const el=document.getElementById('photoList');
+  if(!App.photos.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">🖼</div><p>No photos saved yet.<br>Tap ＋ to add Aadhaar, PAN etc.</p></div>`;return}
+  el.innerHTML=App.photos.map(p=>`<div class="item-card photo-item" onclick="viewPhoto('${p.id}')"><div class="item-icon phi" style="overflow:hidden;border-radius:10px"><img src="${p.img}" style="width:40px;height:40px;object-fit:cover"></div><div class="item-info"><div class="item-title">${escHtml(p.label)}</div><div class="item-sub">Saved: ${p.date}</div></div><div class="item-arrow">›</div></div>`).join('')
+}
+function viewPhoto(id){const p=App.photos.find(x=>x.id==id);if(!p)return;App.currentItemId=id;App.currentItemType='photo';document.getElementById('viewPhotoTitle').textContent='🖼 '+escHtml(p.label);document.getElementById('viewPhotoImg').src=p.img;document.getElementById('viewPhotoDate').textContent='Saved: '+p.date;openModal('modalViewPhoto')}
+
+// ── DELETE ──
+function deleteItem(type){
+  const id=App.currentItemId;
+  if(type==='pass'){App.passwords=App.passwords.filter(x=>x.id!=id);saveAll('password',()=>{renderAll();closeModal('modalViewPass');showToast('🗑 Deleted')})}
+  else if(type==='note'){App.notes=App.notes.filter(x=>x.id!=id);saveAll('note',()=>{renderAll();closeModal('modalViewNote');showToast('🗑 Deleted')})}
+  else{App.photos=App.photos.filter(x=>x.id!=id);saveAll('photo',()=>{renderAll();closeModal('modalViewPhoto');showToast('🗑 Deleted')})}
+  vibrate(40)
+}
+
+// ── MODAL ──
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+function closeModalOnBg(e,id){if(e.target.classList.contains('modal-overlay'))closeModal(id)}
+
+// ── HELPERS ──
+function togglePassVis(inputId,btn){const inp=document.getElementById(inputId);if(inp.type==='password'){inp.type='text';btn.textContent='🙈'}else{inp.type='password';btn.textContent='👁'}}
+function copyText(id){const el=document.getElementById(id);const text=el.dataset.real||el.textContent;navigator.clipboard.writeText(text).then(()=>showToast('📋 Copied!')).catch(()=>{const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('📋 Copied!')})}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
+function escHtml(str){if(!str)return'';return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+// ── INSTALL GUIDE ──
+function showInstallGuide(){
+  document.getElementById('installBanner').classList.add('show');
+  document.getElementById('installFab').style.display='none';
+}
+function dismissInstall(permanent){
+  document.getElementById('installBanner').classList.remove('show');
+  if(permanent){
+    localStorage.setItem('cv_install_done','1');
+    document.getElementById('installFab').style.display='none';
+    showToast('✓ Guide dismiss kiya! Vault use karo 🔐');
+  } else {
+    // Show reminder FAB after 5 seconds
+    setTimeout(()=>{
+      if(!localStorage.getItem('cv_install_done'))
+        document.getElementById('installFab').style.display='block';
+    },5000);
+  }
+}
+function checkInstallPrompt(){
+  // Show install guide automatically on first visit
+  const done=localStorage.getItem('cv_install_done');
+  const shown=localStorage.getItem('cv_install_shown');
+  if(!done && !shown){
+    localStorage.setItem('cv_install_shown','1');
+    setTimeout(showInstallGuide, 1500);
+  } else if(!done){
+    // Show floating FAB as reminder
+    setTimeout(()=>document.getElementById('installFab').style.display='block', 2000);
+  }
+}
+
+// Also add install guide to settings
+function openSettingsWithInstall(){
+  openModal('modalSettings');
+}
+
+// ── FIREBASE CONFIG (Debendra's project) ──
+const firebaseConfig = {
+  apiKey: "AIzaSyAavMRD1WecrPyOEftnpDVsOzOUW0erPIM",
+  authDomain: "deba-91096.firebaseapp.com",
+  databaseURL: "https://deba-91096-default-rtdb.firebaseio.com",
+  projectId: "deba-91096",
+  storageBucket: "deba-91096.firebasestorage.app",
+  messagingSenderId: "567725932409",
+  appId: "1:567725932409:web:e42602526f41e2cb4bf9a8"
+};
+let firebaseApp, firebaseDB;
+function initFirebase(){
+  try{
+    firebaseApp = firebase.initializeApp(firebaseConfig);
+    firebaseDB  = firebase.database();
+    updateSyncStatus('ok');
+  } catch(e){ updateSyncStatus('err'); }
+}
+function updateSyncStatus(s){
+  const el=document.getElementById('syncStatusBadge');
+  if(!el)return;
+  if(s==='ok'){el.className='sync-status sync-ok';el.textContent='● Firebase: Connected ✓'}
+  else if(s==='err'){el.className='sync-status sync-err';el.textContent='● Firebase: Error — Check internet'}
+  else{el.className='sync-status sync-off';el.textContent='● Firebase: Connecting...'}
+}
+
+// ── GENERATE / GET EMERGENCY ID ──
+function getEmergencyID(){
+  let eid = localStorage.getItem('cv_emergency_id');
+  if(!eid){
+    eid = 'CV-' + Math.random().toString(36).substring(2,6).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase();
+    localStorage.setItem('cv_emergency_id', eid);
+  }
+  return eid;
+}
+function showEmergencyID(){
+  const eid = getEmergencyID();
+  const el = document.getElementById('emergencyIDDisplay');
+  if(el) el.textContent = eid;
+}
+function copyEmergencyID(){
+  const eid = getEmergencyID();
+  navigator.clipboard.writeText(eid).then(()=>showToast('📋 Secret ID copied!')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=eid;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('📋 Copied!');
+  });
+}
+
+// ── CLOUD SYNC (Upload encrypted data to Firebase) ──
+async function syncToCloud(){
+  if(!firebaseDB){ showToast('⚠ Firebase not connected!'); return; }
+  const eid = getEmergencyID();
+  const encPass = xorEncrypt(JSON.stringify(App.passwords), App.encKey);
+  const encNotes = xorEncrypt(JSON.stringify(App.notes), App.encKey);
+  const encPhotos = xorEncrypt(JSON.stringify(App.photos), App.encKey);
+  const pinHash = localStorage.getItem('cv_pin') || '';
+  try{
+    await firebaseDB.ref('vaults/' + eid.replace(/-/g,'_')).set({
+      passwords: encPass,
+      notes: encNotes,
+      photos: encPhotos,
+      pinHash: pinHash,
+      lastSync: new Date().toISOString(),
+      version: '5.0'
+    });
+    updateSyncStatus('ok');
+    showToast('✅ Cloud sync successful!');
+    closeModal('modalCloudSync');
+  } catch(e){
+    updateSyncStatus('err');
+    showToast('❌ Sync failed! Check internet.');
+  }
+}
+
+// ── LOAD FROM CLOUD ──
+async function loadFromCloud(){
+  if(!firebaseDB){ showToast('⚠ Firebase not connected!'); return; }
+  const eid = getEmergencyID();
+  try{
+    const snap = await firebaseDB.ref('vaults/' + eid.replace(/-/g,'_')).get();
+    if(!snap.exists()){ showToast('⚠ No cloud data found!'); return; }
+    const data = snap.val();
+    App.passwords = JSON.parse(xorDecrypt(data.passwords, App.encKey));
+    App.notes     = JSON.parse(xorDecrypt(data.notes, App.encKey));
+    App.photos    = JSON.parse(xorDecrypt(data.photos, App.encKey));
+    saveAll('password',()=>saveAll('note',()=>saveAll('photo',()=>{
+      renderAll();
+      closeModal('modalCloudSync');
+      showToast('✅ Data loaded from cloud!');
+    })));
+  } catch(e){ showToast('❌ Load failed! Check internet.'); }
+}
+
+// ── EMERGENCY LOGIN ──
+async function emergencyLogin(){
+  const eid = document.getElementById('emSecretID').value.trim();
+  const pin = document.getElementById('emPIN').value.trim();
+  if(!eid || pin.length !== 4){ showToast('⚠ Secret ID aur 4-digit PIN dono chahiye!'); return; }
+  if(!firebaseDB){ document.getElementById('emLoginStatus').className='status-msg error'; document.getElementById('emLoginStatus').textContent='❌ Internet nahi hai!'; return; }
+  document.getElementById('emLoginStatus').className='status-msg'; document.getElementById('emLoginStatus').textContent='🔄 Verifying...';
+  try{
+    const snap = await firebaseDB.ref('vaults/' + eid.replace(/-/g,'_')).get();
+    if(!snap.exists()){ document.getElementById('emLoginStatus').className='status-msg error'; document.getElementById('emLoginStatus').textContent='❌ ID nahi mili!'; return; }
+    const data = snap.val();
+    const enteredHash = simpleHash(pin);
+    if(enteredHash !== data.pinHash){ document.getElementById('emLoginStatus').className='status-msg error'; document.getElementById('emLoginStatus').textContent='❌ Wrong PIN!'; return; }
+    // Decrypt with emergency key
+    const emKey = pin + 'CYBERVAULT_ENC_KEY';
+    const emPasswords = JSON.parse(xorDecrypt(data.passwords, emKey));
+    const emNotes     = JSON.parse(xorDecrypt(data.notes, emKey));
+    const emPhotos    = JSON.parse(xorDecrypt(data.photos, emKey));
+    renderEmergencyViewer(emPasswords, emNotes, emPhotos);
+    document.getElementById('emLoginStatus').textContent='';
+    document.getElementById('emSecretID').value='';
+    document.getElementById('emPIN').value='';
+    showScreen('screenEmergency');
+  } catch(e){ document.getElementById('emLoginStatus').className='status-msg error'; document.getElementById('emLoginStatus').textContent='❌ Error! Internet check karo.'; }
+}
+
+// ── RENDER EMERGENCY VIEWER ──
+function renderEmergencyViewer(passes, notes, photos){
+  // Passwords
+  const pl = document.getElementById('evPassList');
+  pl.innerHTML = passes.length ? passes.map(p=>`
+    <div class="ev-item">
+      <div class="ev-item-title">🔑 ${escHtml(p.site)}</div>
+      <div class="ev-item-row"><span class="ev-item-label">Username</span><span class="ev-item-val">${escHtml(p.user)||'—'}</span><button class="ev-copy" onclick="evCopy('${escHtml(p.user)}')">COPY</button></div>
+      <div class="ev-item-row"><span class="ev-item-label">Password</span><span class="ev-item-val">${escHtml(p.pwd)}</span><button class="ev-copy" onclick="evCopy('${escHtml(p.pwd)}')">COPY</button></div>
+    </div>`).join('') : '<p style="color:var(--muted);font-size:13px;padding:10px 0">Koi password nahi</p>';
+  // Notes
+  const nl = document.getElementById('evNoteList');
+  nl.innerHTML = notes.length ? notes.map(n=>`
+    <div class="ev-item">
+      <div class="ev-item-title">📝 ${escHtml(n.title)}</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:6px;line-height:1.6;white-space:pre-wrap">${escHtml(n.content)}</div>
+    </div>`).join('') : '<p style="color:var(--muted);font-size:13px;padding:10px 0">Koi notes nahi</p>';
+  // Photos
+  const phg = document.getElementById('evPhotoGrid');
+  phg.innerHTML = photos.length ? photos.map(p=>`
+    <div class="ev-photo-card" onclick="evViewPhoto('${p.id}','${escHtml(p.label)}')">
+      <img src="${p.img}" alt="${escHtml(p.label)}">
+      <div class="ev-photo-label">${escHtml(p.label)}</div>
+    </div>`).join('') : '<p style="color:var(--muted);font-size:13px;padding:10px 0;grid-column:span 2">Koi photos nahi</p>';
+  // Store temporarily for fullscreen view
+  window._evPhotos = photos;
+}
+function evViewPhoto(id, label){
+  const p = (window._evPhotos||[]).find(x=>x.id==id);
+  if(!p) return;
+  document.getElementById('evPhotoTitle').textContent = '🖼 ' + label;
+  document.getElementById('evPhotoFull').src = p.img;
+  openModal('modalEvPhoto');
+}
+function evCopy(text){
+  navigator.clipboard.writeText(text).then(()=>showToast('📋 Copied!')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('📋 Copied!');
+  });
+}
+
+// ── EMERGENCY LOGOUT (zero trace) ──
+function emergencyLogout(){
+  // Clear all emergency data
+  document.getElementById('evPassList').innerHTML='';
+  document.getElementById('evNoteList').innerHTML='';
+  document.getElementById('evPhotoGrid').innerHTML='';
+  document.getElementById('evPhotoFull').src='';
+  document.getElementById('emSecretID').value='';
+  document.getElementById('emPIN').value='';
+  window._evPhotos = [];
+  // Clear session storage
+  sessionStorage.clear();
+  // Show cleared toast then go to login
+  showToast('🔒 Logged out — No trace left!');
+  setTimeout(()=>showScreen('screenLogin'), 1500);
+}
+
+// ── LOCAL BACKUP ──
+function downloadBackup(){
+  const backup = {
+    version: '5.0',
+    date: new Date().toISOString(),
+    eid: getEmergencyID(),
+    pinHash: localStorage.getItem('cv_pin')||'',
+    passwords: xorEncrypt(JSON.stringify(App.passwords), App.encKey),
+    notes: xorEncrypt(JSON.stringify(App.notes), App.encKey),
+    photos: xorEncrypt(JSON.stringify(App.photos), App.encKey)
+  };
+  const blob = new Blob([JSON.stringify(backup)], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'CyberVault_Backup_' + new Date().toLocaleDateString('en-IN').replace(/\//g,'-') + '.cvbackup';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  closeModal('modalBackup');
+  showToast('✅ Backup downloaded!');
+}
+
+function restoreBackup(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const backup = JSON.parse(e.target.result);
+      if(!backup.version || !backup.passwords){ showToast('❌ Invalid backup file!'); return; }
+      App.passwords = JSON.parse(xorDecrypt(backup.passwords, App.encKey));
+      App.notes     = JSON.parse(xorDecrypt(backup.notes, App.encKey));
+      App.photos    = JSON.parse(xorDecrypt(backup.photos, App.encKey));
+      saveAll('password',()=>saveAll('note',()=>saveAll('photo',()=>{
+        renderAll();
+        closeModal('modalBackup');
+        showToast('✅ Backup restored successfully!');
+      })));
+    } catch(err){ showToast('❌ Restore failed! Wrong PIN ya invalid file.'); }
+  };
+  reader.readAsText(file);
+}
+
+// ── BOOT ──
+initDB();
+initFirebase();
+checkInstallPrompt();
+showEmergencyID();
+</script>
+</body>
+</html>
